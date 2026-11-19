@@ -1,0 +1,394 @@
+body { 
+  font-family: "微软雅黑", Arial, sans-serif; 
+  background: #f5f6fa; 
+}
+
+.container { 
+  width: 95%; 
+  margin: 20px auto; 
+  background: #fff; 
+  padding: 20px; 
+  border-radius: 8px; 
+}
+
+section { 
+  margin-bottom: 25px; 
+  border-bottom: 1px solid #eee; 
+  padding-bottom: 15px; 
+}
+
+h3 { 
+  color: #2980b9; 
+  margin-bottom: 15px; 
+}
+
+label { 
+  margin-right: 8px; 
+  display: inline-block; 
+  width: 100px; 
+  font-size: 14px; 
+}
+
+select, input[type="text"], textarea { 
+  margin: 3px 0 10px 0; 
+  width: 180px; 
+  padding: 4px; 
+  font-size: 13px; 
+}
+
+#result { 
+  margin-top: 20px; 
+  color: #2d3436; 
+  font-size: 16px; 
+}
+
+/* 紧凑的字段映射布局 */
+.field-mapping { 
+  margin-bottom: 8px; 
+  display: inline-block; 
+  width: calc(50% - 10px); 
+  margin-right: 10px;
+  vertical-align: top;
+}
+
+.field-mapping:nth-child(even) { 
+  margin-right: 0; 
+}
+
+.field-mapping label { 
+  width: 90px; 
+  font-size: 13px; 
+}
+
+.field-mapping select { 
+  width: 150px; 
+}
+
+/* 状态样式 */
+.auto-mapped { 
+  background-color: #e8f5e8; 
+  border: 1px solid #4caf50; 
+  border-radius: 4px; 
+  padding: 5px; 
+}
+
+.manual-select { 
+  background-color: #fff3cd; 
+  border: 1px solid #ffc107; 
+  border-radius: 4px; 
+  padding: 5px; 
+}
+
+.mapping-status { 
+  font-size: 11px; 
+  margin-left: 5px; 
+}
+
+.auto-mapped .mapping-status { 
+  color: #4caf50; 
+}
+
+.manual-select .mapping-status { 
+  color: #ff9800; 
+}
+
+/* 信息框样式 */
+.mapping-info { 
+  background: #f8f9fa; 
+  padding: 8px 12px; 
+  margin: 10px 0; 
+  border-radius: 5px; 
+  border-left: 4px solid #007bff; 
+  font-size: 13px;
+}
+
+.mapping-info h4 { 
+  margin: 0 0 8px 0; 
+  color: #007bff; 
+  font-size: 14px; 
+}
+
+.mapping-info p { 
+  margin: 3px 0; 
+  font-size: 12px; 
+}
+
+/* 按钮样式 */
+.auto-mapping-btn { 
+  background: #007bff; 
+  color: white; 
+  border: none; 
+  padding: 6px 12px; 
+  border-radius: 4px; 
+  cursor: pointer; 
+  margin: 8px 0; 
+  font-size: 12px;
+}
+
+.auto-mapping-btn:hover { 
+  background: #0056b3; 
+}
+
+/* 字段组样式 */
+.field-group { 
+  border: 1px solid #ddd; 
+  padding: 12px; 
+  margin: 8px 0; 
+  border-radius: 5px; 
+  background: #fafafa;
+}
+
+.field-group h4 { 
+  margin-top: 0; 
+  color: #495057; 
+  font-size: 15px; 
+  margin-bottom: 10px; 
+}
+
+/* 字段行容器 */
+.field-row { 
+  display: flex; 
+  flex-wrap: wrap; 
+  gap: 8px; 
+  margin-bottom: 8px;
+}
+
+/* 响应式布局 */
+@media (max-width: 1200px) {
+  .field-mapping { 
+    width: calc(50% - 5px); 
+  }
+}
+
+@media (max-width: 768px) {
+  .field-mapping { 
+    width: 100%; 
+    margin-right: 0; 
+  }
+  .container { 
+    width: 98%; 
+    padding: 15px; 
+  }
+}
+
+/* 提交按钮样式 */
+.submit-btn { 
+  background: #28a745; 
+  color: white; 
+  padding: 12px 24px; 
+  border: none; 
+  border-radius: 5px; 
+  cursor: pointer; 
+  font-size: 16px; 
+  margin-top: 15px;
+  transition: all 0.3s ease;
+}
+
+.submit-btn:hover { 
+  background: #218838; 
+}
+
+.submit-btn:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.submit-btn:disabled:hover {
+  background: #6c757d;
+}
+
+/* 提交中状态样式 */
+.submit-btn.submitting {
+  background: #ffc107;
+  color: #212529;
+  position: relative;
+  overflow: hidden;
+}
+
+.submit-btn.submitting::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+  animation: loading-shimmer 1.5s infinite;
+}
+
+@keyframes loading-shimmer {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+/* 文件上传区域 */
+.upload-section { 
+  background: #f8f9fa; 
+  padding: 15px; 
+  border-radius: 5px; 
+  margin-bottom: 15px;
+}
+
+.upload-section label { 
+  width: 120px; 
+}
+
+.upload-section select { 
+  width: 200px; 
+}
+
+/* 输出设置区域 */
+.output-section {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 5px;
+  margin-bottom: 15px;
+}
+
+.output-section label {
+  width: 120px;
+}
+
+.output-section select {
+  width: 200px;
+}
+
+/* 复选框样式 */
+.checkbox-group {
+  margin-top: 10px;
+  margin-bottom: 15px;
+}
+
+.checkbox-group label {
+  width: auto;
+  margin-right: 20px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.checkbox-group input[type="checkbox"] {
+  margin-right: 5px;
+}
+
+/* 输出信息样式 */
+.output-info {
+  background: #e3f2fd;
+  padding: 12px;
+  border-radius: 5px;
+  border-left: 4px solid #2196f3;
+  margin-top: 10px;
+}
+
+.output-info p {
+  margin: 5px 0;
+  font-size: 13px;
+  color: #1976d2;
+}
+
+.output-info code {
+  background: #f1f3f4;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+}
+
+/* 3DTiles下载区域样式 */
+.download-section {
+  margin-top: 20px;
+  padding: 15px;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  border-left: 4px solid #28a745;
+}
+
+.download-section h4 {
+  margin: 0 0 15px 0;
+  color: #28a745;
+  font-size: 16px;
+}
+
+.download-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.download-btn {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.download-btn:hover {
+  background: #5a6268;
+  transform: translateY(-1px);
+}
+
+.download-btn.primary {
+  background: #28a745;
+}
+
+.download-btn.primary:hover {
+  background: #218838;
+}
+
+.download-btn.secondary {
+  background: #17a2b8;
+}
+
+.download-btn.secondary:hover {
+  background: #138496;
+}
+
+.download-btn.success {
+  background: #28a745;
+}
+
+.download-btn.success:hover {
+  background: #218838;
+}
+
+.download-info {
+  background: #e9ecef;
+  padding: 10px;
+  border-radius: 5px;
+  font-size: 13px;
+}
+
+.download-info p {
+  margin: 5px 0;
+  font-weight: bold;
+}
+
+.download-info ul {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.download-info li {
+  margin: 3px 0;
+  line-height: 1.4;
+}
+
+/* 响应式下载按钮 */
+@media (max-width: 768px) {
+  .download-buttons {
+    flex-direction: column;
+  }
+  
+  .download-btn {
+    width: 100%;
+    text-align: center;
+  }
+} 

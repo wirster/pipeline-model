@@ -1,0 +1,17 @@
+server:
+  port: 8080
+spring:
+  application:
+    name: pipe-model
+
+# 文件路径配置
+app:
+  file:
+    # 输出目录配置
+    output-dir: E:\\3dtiltes\\tiles
+    # 上传目录配置  
+    upload-dir: ./target/classes/uploads
+    # 是否使用相对路径（相对于resources目录）
+    use-relative-path: true
+# obj23dtiles所在路径
+obj23dtilesPath: D:\nodejs\obj23dtiles.cmd

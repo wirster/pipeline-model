@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>三维管网建模工具</title>
+  <link rel="stylesheet" href="/css/style.css?v=20250909-1">
+  <style>
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+    
+    .pulse-animation {
+      animation: pulse 2s infinite;
+    }
+    
+    /* Tabs */
+    .tabs { margin-top: 8px; }
+    .tab-headers { display:flex; gap:8px; border-bottom:1px solid #eee; margin-bottom:10px; }
+    .tab-btn { background:#f5f5f5; border:1px solid #ddd; border-bottom:none; padding:6px 12px; cursor:pointer; border-top-left-radius:4px; border-top-right-radius:4px; }
+    .tab-btn.active { background:#fff; font-weight:600; }
+    .tab-panels { background:#fff; border:1px solid #ddd; padding:12px; border-radius:0 4px 4px 4px; }
+    .tab-panel { display:none; }
+    .tab-panel.active { display:block; }
+ 
+  </style>
+</head>
+<body>
+<div class="container">
+  <section>
+    <h3>1. 数据源设置</h3>
+    <div class="upload-section">
+      <div style="margin-bottom: 10px;">
+        <label>管线shape(zip)：</label>
+        <input type="file" id="uploadLine" accept=".zip">
+        <label style="margin-left: 20px;">管线图层：</label>
+        <select id="lineLayer"></select>
+      </div>
+      <div>
+        <label>管点shape(zip)：</label>
+        <input type="file" id="uploadPoint" accept=".zip">
+        <label style="margin-left: 20px;">管点图层：</label>
+        <select id="pointLayer"></select>
+      </div>
+    </div>
+  </section>
+  
+  <section>
+    <h3>2. 字段映射</h3>
+    <div class="mapping-flex" style="display: flex; gap: 32px; align-items: flex-start; margin-bottom: 24px;">
+      <div class="mapping-col" style="flex: 1; min-width: 320px; border-right: 1px solid #eee; padding-right: 24px;">
+        <h4>🚩 管线字段映射</h4>
+        <button class="auto-mapping-btn" onclick="autoMapFields('line')">🔄 重新自动映射管线字段</button>
+        <div id="lineMappingFields">
+          <!-- 管线字段映射内容原样放这里 -->
+          <div class="field-row">
+            <div class="field-mapping">
+              <label>唯一标识码</label>
+              <select id="lineId" onchange="updateMappingStatus('lineId')">
+                <option value="">请选择字段</option>
+              </select>
+              <span class="mapping-status" id="lineId-status"></span>
+            </div>
+            <div class="field-mapping">
+              <label>起点编号</label>
+              <select id="lineStart" onchange="updateMappingStatus('lineStart')">
+                <option value="">请选择字段</option>
+              </select>
+              <span class="mapping-status" id="lineStart-status"></span>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field-mapping">
+              <label>终点编号</label>
+              <select id="lineEnd" onchange="updateMappingStatus('lineEnd')">
+                <option value="">请选择字段</option>
+              </select>
+              <span class="mapping-status" id="lineEnd-status"></span>
+            </div>
+            <div class="field-mapping">
+              <label>管径</label>
+              <select id="lineDiameter" onchange="updateMappingStatus('lineDiameter')">
+                <option value="">请选择字段</option>
+              </select>
+              <span class="mapping-status" id="lineDiameter-status"></span>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field-mapping">
+              <label>起点高程</label>
+              <select id="lineStartElev" onchange="updateMappingStatus('lineStartElev')">
+                <option value="">请选择字段</option>
+              </select>
+              <span class="mapping-status" id="lineStartElev-status"></span>
+            </div>
+            <div class="field-mapping">
+              <label>终点高程</label>
+              <select id="lineEndElev" onchange="updateMappingStatus('lineEndElev')">
+                <option value="">请选择字段</option>
+              </select>
+              <span class="mapping-status" id="lineEndElev-status"></span>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field-mapping">
+              <label>管段起点埋深</label>
+              <select id="lineStartDepth" onchange="updateMappingStatus('lineStartDepth')">
+                <option value="">请选择字段</option>
+              </select>
+              <span class="mapping-status" id="lineStartDepth-status"></span>
+            </div>
+            <div class="field-mapping">
+              <label>管段终点埋深</label>
+              <select id="lineEndDepth" onchange="updateMappingStatus('lineEndDepth')">
+                <option value="">请选择字段</option>
+              </select>
+              <span class="mapping-status" id="lineEndDepth-status"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="mapping-col" style="flex: 1; min-width: 320px; padding-left: 24px;">
+        <h4>📍 管点字段映射</h4>
+        <button class="auto-mapping-btn" onclick="autoMapFields('point')">🔄 重新自动映射管点字段</button>
+        <div id="pointMappingFields">
+          <!-- 管点字段映射内容原样放这里 -->
+          <div class="field-row">
+            <div class="field-mapping">
+              <label>唯一标识码</label>
+              <select id="pointId" onchange="updateMappingStatus('pointId')">
+                <option value="">请选择字段</option>
+              </select>
+              <span class="mapping-status" id="pointId-status"></span>
+            </div>
+            <div class="field-mapping">
+              <label>管点编号</label>
+              <select id="pointCode" onchange="updateMappingStatus('pointCode')">
+                <option value="">请选择字段</option>
+              </select>
+              <span class="mapping-status" id="pointCode-status"></span>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field-mapping">
+              <label>附属物</label>
+              <select id="pointAttach" onchange="updateMappingStatus('pointAttach')">
+                <option value="">请选择字段</option>
+              </select>
+              <span class="mapping-status" id="pointAttach-status"></span>
+            </div>
+            <div class="field-mapping">
+              <label>特征</label>
+              <select id="pointFeature" onchange="updateMappingStatus('pointFeature')">
+                <option value="">请选择字段</option>
+              </select>
+              <span class="mapping-status" id="pointFeature-status"></span>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field-mapping">
+              <label>附属物类型</label>
+              <select id="pointAttachType" onchange="updateMappingStatus('pointAttachType')">
+                <option value="">请选择字段</option>
+              </select>
+              <span class="mapping-status" id="pointAttachType-status"></span>
+            </div>
+            <div class="field-mapping">
+              <label>特征类型</label>
+              <select id="pointFeatureType" onchange="updateMappingStatus('pointFeatureType')">
+                <option value="">请选择字段</option>
+              </select>
+              <span class="mapping-status" id="pointFeatureType-status"></span>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field-mapping">
+              <label>井盖类型</label>
+              <select id="pointCoverType" onchange="updateMappingStatus('pointCoverType')">
+                <option value="">请选择字段</option>
+              </select>
+              <span class="mapping-status" id="pointCoverType-status"></span>
+            </div>
+            <div class="field-mapping">
+              <label>井盖规格</label>
+              <select id="pointCoverRule" onchange="updateMappingStatus('pointCoverRule')">
+                <option value="">请选择字段</option>
+              </select>
+              <span class="mapping-status" id="pointCoverRule-status"></span>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field-mapping">
+              <label>井盖材质</label>
+              <select id="pointCoverMat" onchange="updateMappingStatus('pointCoverMat')">
+                <option value="">请选择字段</option>
+              </select>
+              <span class="mapping-status" id="pointCoverMat-status"></span>
+            </div>
+            <div class="field-mapping">
+              <label>地面高程</label>
+              <select id="pointGround" onchange="updateMappingStatus('pointGround')">
+                <option value="">请选择字段</option>
+              </select>
+              <span class="mapping-status" id="pointGround-status"></span>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field-mapping">
+              <label>井深</label>
+              <select id="pointDepth" onchange="updateMappingStatus('pointDepth')">
+                <option value="">请选择字段</option>
+              </select>
+              <span class="mapping-status" id="pointDepth-status"></span>
+            </div>
+            <div class="field-mapping">
+              <label>方向</label>
+              <select id="pointDirection" onchange="updateMappingStatus('pointDirection')">
+                <option value="">请选择字段</option>
+              </select>
+              <span class="mapping-status" id="pointDirection-status"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <section>
+    <h3>3. 建模参数设置</h3>
+    <div class="tabs">
+      <div class="tab-headers">
+        <button type="button" class="tab-btn active" data-tab="basic">基础设置</button>
+        <button type="button" class="tab-btn" data-tab="attach">附属物设置</button>
+        <button type="button" class="tab-btn" data-tab="feature">特征设置</button>
+      </div>
+      <div class="tab-panels">
+        <div class="tab-panel active" id="tab-basic">
+          <div class="model-settings">
+            <div style="margin-bottom:10px;">
+              <label>方案：</label>
+              <select id="renderScheme">
+                <option value="texture">贴图</option>
+                <option value="color" selected>颜色</option>
+              </select>
+              <label style="margin-left:20px;"><span id="pipeMaterialLabel">管线材质(颜色)</span>：</label>
+              <input type="text" id="pipeColor" value="rgba(76, 57, 38, 1)" style="width:140px;">
+              <input type="color" id="pipeColorPicker" value="#4c3926" style="width:40px; margin-left:5px; vertical-align:middle;">
+              <input type="file" id="pipeTexture" accept="image/*" style="margin-left:10px; display:none;">
+              <img id="pipeTexturePreview" src="" alt="纹理预览" style="display:none; height:36px; margin-left:10px; vertical-align:middle; border:1px solid #ddd; padding:2px;">
+              <span style="font-size:12px;color:#888;" id="pipeMaterialHint">(选择颜色或图片)</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:30px; margin-bottom:10px;">
+              <div>
+                <label>埋深基础：</label>
+                <select id="depthBase">
+                  <option value="top" selected>管顶</option>
+                  <option value="center">管心</option>
+                  <option value="bottom">管底</option>
+                </select>
+              </div>
+              <div>
+                <label>网格化管理(模型分片)：</label>
+                <select id="gridSize">
+                  <option value="0.25">0.25km</option>
+                  <option value="0.5">0.5km</option>
+                  <option value="0.75">0.75km</option>
+                  <option value="1.0">1km</option>
+                </select>
+              </div>
+              <div>
+                <label>输出参数：</label>
+                <input type="checkbox" id="enableDraco"> 启用模型压缩(Draco)
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="tab-panel" id="tab-attach">
+          <section id="pointAttachSettings" style="display:none; margin-top: 0;">
+            <div style="margin-bottom:10px;">
+              <label>附属物字段：</label>
+              <select id="attachFieldSelect">
+                <option value="">请选择字段</option>
+              </select>
+              <label style="margin-left:16px;">附属物类型字段：</label>
+              <select id="attachTypeFieldSelect">
+                <option value="">请选择字段</option>
+              </select>
+            </div>
+            <table id="pointAttachTable" style="width:100%; border-collapse: collapse;">
+              <thead>
+                <tr>
+                  <th style="text-align:left; border-bottom:1px solid #eee; padding:8px 4px;">属性值</th>
+                  <th style="text-align:left; border-bottom:1px solid #eee; padding:8px 4px;">附属物类型</th>
+                  <th style="text-align:left; border-bottom:1px solid #eee; padding:8px 4px;">附属物模型</th>
+                  <th style="text-align:left; border-bottom:1px solid #eee; padding:8px 4px;">状态</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+            <div style="margin-top:8px; font-size:12px; color:#888; line-height:1.6;">
+              <div>说明：</div>
+              <div>- 为每个"属性值"选择并上传对应的模型包（ZIP格式）。</div>
+              <div>- ZIP包中应包含：.obj模型文件、.mtl材质文件、相关贴图图片文件。</div>
+              <div>- 上传成功后即建立"属性值 → 模型包"映射。</div>
+              <div>- 提交建模任务时，会随参数一并提交映射，服务端按附属物类型优先使用对应模型。</div>
+            </div>
+          </section>
+        </div>
+        <div class="tab-panel" id="tab-feature">
+          <section id="pointFeatureSettings" style="display:none; margin-top: 0;">
+            <div style="margin-bottom:10px;">
+              <label>特征字段：</label>
+              <select id="featureFieldSelect">
+                <option value="">请选择字段</option>
+              </select>
+              <label style="margin-left:16px;">特征类型字段：</label>
+              <select id="featureTypeFieldSelect">
+                <option value="">请选择字段</option>
+              </select>
+            </div>
+            <table id="pointFeatureTable" style="width:100%; border-collapse: collapse;">
+              <thead>
+                <tr>
+                  <th style="text-align:left; border-bottom:1px solid #eee; padding:8px 4px;">属性值</th>
+                  <th style="text-align:left; border-bottom:1px solid #eee; padding:8px 4px;">特征类型</th>
+                  <th style="text-align:left; border-bottom:1px solid #eee; padding:8px 4px;">特征模型</th>
+                  <th style="text-align:left; border-bottom:1px solid #eee; padding:8px 4px;">状态</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+            <div style="margin-top:8px; font-size:12px; color:#888; line-height:1.6;">
+              <div>说明：</div>
+              <div>- 直接按特征类型上传对应模型（无需手动添加变体名称）。</div>
+              <div>- ZIP包中应包含：.obj模型文件、.mtl材质文件、相关贴图图片文件。</div>
+              <div>- 特征模型由特征 + 特征类型唯一确定。</div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <button class="submit-btn" onclick="submitAll()">提交建模任务</button>
+  <div id="result"></div>
+  
+  <!-- 建模数据下载区域，仅显示3DTiles下载 -->
+  <div class="download-section" id="downloadSection" style="display: none;">
+    <h4>📦 建模数据下载</h4>
+    <div class="download-buttons">
+      <button class="download-btn secondary" onclick="download3DTilesZip()">🎯 下载3DTiles包</button>
+    </div>
+    <div class="download-info">
+      <p><strong>说明：</strong>建模完成后可下载3DTiles格式数据包，兼容Cesium、Mapbox、Three.js等主流3D引擎。</p>
+    </div>
+  </div>
+  
+</div>
+
+<!-- 引入外部JavaScript文件 -->
+<script src="/js/app.js?v=20250909-1"></script>
+<script>
+// pipeColor文本框与颜色选择器联动
+function rgbaToHex(rgba) {
+    // 只取rgb部分
+    var result = rgba.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+    if (!result) return '#4c3926';
+    var r = parseInt(result[1]).toString(16).padStart(2, '0');
+    var g = parseInt(result[2]).toString(16).padStart(2, '0');
+    var b = parseInt(result[3]).toString(16).padStart(2, '0');
+    return '#' + r + g + b;
+}
+function hexToRgba(hex) {
+    hex = hex.replace('#', '');
+    if (hex.length === 3) hex = hex.split('').map(x => x + x).join('');
+    var r = parseInt(hex.substring(0,2), 16);
+    var g = parseInt(hex.substring(2,4), 16);
+    var b = parseInt(hex.substring(4,6), 16);
+    return 'rgba(' + r + ', ' + g + ', ' + b + ', 1)';
+}
+window.addEventListener('DOMContentLoaded', function() {
+    var colorInput = document.getElementById('pipeColor');
+    var colorPicker = document.getElementById('pipeColorPicker');
+    // 颜色选择器变化时，更新文本框
+    colorPicker.addEventListener('input', function() {
+        colorInput.value = hexToRgba(colorPicker.value);
+    });
+    // 文本框变化时，若为#RRGGBB则同步到选择器
+    colorInput.addEventListener('input', function() {
+        var val = colorInput.value.trim();
+        if (/^#([0-9a-fA-F]{6})$/.test(val)) {
+            colorPicker.value = val;
+        } else if (/^rgba?\(/.test(val)) {
+            colorPicker.value = rgbaToHex(val);
+        }
+    });
+    // 初始化同步
+    colorPicker.value = rgbaToHex(colorInput.value);
+
+    // Tabs 交互
+    var tabButtons = document.querySelectorAll('.tab-btn');
+    var panels = {
+      basic: document.getElementById('tab-basic'),
+      attach: document.getElementById('tab-attach'),
+      feature: document.getElementById('tab-feature')
+    };
+    tabButtons.forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        // 切换按钮激活态
+        tabButtons.forEach(function(b){ b.classList.remove('active'); });
+        btn.classList.add('active');
+        // 切换面板
+        Object.values(panels).forEach(function(p){ p.classList.remove('active'); });
+        var key = btn.getAttribute('data-tab');
+        var panel = panels[key];
+        if (panel) panel.classList.add('active');
+      });
+    });
+});
+</script>
+</body>
+</html> 
