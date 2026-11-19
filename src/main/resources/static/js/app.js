@@ -18,7 +18,6 @@ const fieldMappings = {
     pointFeature: ['特征', 'feature', 'tz'],
     pointFeatureType: ['特征类型', 'feature_type', 'tzlx', 'featureType'],
     pointDirection: ['方向', 'direction', 'dir', 'angle', 'azimuth', 'fangxiang'],
-    pointCoverType: ['井盖类型', 'cover_type', 'jglx'],
     pointCoverRule: ['井盖规格', 'cover_rule', 'jggg'],
     pointCoverMat: ['井盖材质', 'cover_mat', 'jgzl'],
     pointGround: ['地面高程', 'ground', 'g', 'dm', 'dmgc'],
@@ -230,7 +229,7 @@ function addFieldChangeListeners() {
   
   // 管点字段监听器
   const pointFieldIds = [
-    'pointId','pointCode','pointAttach','pointAttachType','pointFeature','pointFeatureType','pointDirection','pointCoverType',
+    'pointId','pointCode','pointAttach','pointAttachType','pointFeature','pointFeatureType','pointDirection',
     'pointCoverRule','pointCoverMat','pointGround','pointDepth'
   ];
   
@@ -276,8 +275,6 @@ function getMissingFields() {
       { id: 'lineEnd', label: '管段终点编号' },
       { id: 'lineStartElev', label: '起点管道高程' },
       { id: 'lineEndElev', label: '终点管道高程' },
-      { id: 'lineStartDepth', label: '管段起点埋深' },
-      { id: 'lineEndDepth', label: '管段终点埋深' },
       { id: 'lineDiameter', label: '管径' }
     ];
     
@@ -295,7 +292,6 @@ function getMissingFields() {
       { id: 'pointCode', label: '管点编号' },
       { id: 'pointAttach', label: '附属物' },
       { id: 'pointFeature', label: '特征' },
-      { id: 'pointCoverType', label: '井盖类型' },
       { id: 'pointCoverRule', label: '井盖规则' },
       { id: 'pointCoverMat', label: '井盖材质' },
       { id: 'pointGround', label: '地面高程' },
@@ -335,7 +331,7 @@ function clearLineFields() {
 // 清空管点字段映射
 function clearPointFields() {
   const pointFieldIds = [
-    'pointId','pointCode','pointAttach','pointAttachType','pointFeature','pointFeatureType','pointDirection','pointCoverType',
+    'pointId','pointCode','pointAttach','pointAttachType','pointFeature','pointFeatureType','pointDirection',
     'pointCoverRule','pointCoverMat','pointGround','pointDepth'
   ];
   
@@ -361,13 +357,15 @@ function handleLineUpload() {
   fetch('/api/uploadLine', { method: 'POST', body: formData })
     .then(res => res.json())
     .then(data => {
+      if (!data.success) throw new Error(data.message || '管线文件解析失败');
       let lineSel = document.getElementById('lineLayer');
       lineSel.innerHTML = '';
-      data.layers.forEach(l => {
+      (data.layers || []).forEach(l => {
         let opt = document.createElement('option');
         opt.value = l; opt.text = l;
         lineSel.appendChild(opt);
       });
+      if (data.defaultLayer) lineSel.value = data.defaultLayer;
       fillSelectsWithMapping(data.fields, [
         'lineId','lineStart','lineEnd','lineStartElev','lineEndElev',
         'lineStartDepth','lineEndDepth','lineDiameter'
@@ -394,15 +392,17 @@ function handlePointUpload() {
   fetch('/api/uploadPoint', { method: 'POST', body: formData })
     .then(res => res.json())
     .then(data => {
+      if (!data.success) throw new Error(data.message || '管点文件解析失败');
       let pointSel = document.getElementById('pointLayer');
       pointSel.innerHTML = '';
-      data.layers.forEach(l => {
+      (data.layers || []).forEach(l => {
         let opt = document.createElement('option');
         opt.value = l; opt.text = l;
         pointSel.appendChild(opt);
       });
+      if (data.defaultLayer) pointSel.value = data.defaultLayer;
       fillSelectsWithMapping(data.fields, [
-        'pointId','pointCode','pointAttach','pointAttachType','pointFeature','pointFeatureType','pointDirection','pointCoverType',
+        'pointId','pointCode','pointAttach','pointAttachType','pointFeature','pointFeatureType','pointDirection',
         'pointCoverRule','pointCoverMat','pointGround','pointDepth'
       ], 'point');
       pointUploaded = true; // 标记管点已上传
@@ -693,7 +693,6 @@ function collectFieldMapping() {
     feature: document.getElementById('pointFeature') ? document.getElementById('pointFeature').value : '',
     featureType: document.getElementById('pointFeatureType') ? document.getElementById('pointFeatureType').value : '',
     direction: document.getElementById('pointDirection') ? document.getElementById('pointDirection').value : '',
-    coverType: document.getElementById('pointCoverType') ? document.getElementById('pointCoverType').value : '',
     coverRule: document.getElementById('pointCoverRule') ? document.getElementById('pointCoverRule').value : '',
     coverMat: document.getElementById('pointCoverMat') ? document.getElementById('pointCoverMat').value : '',
     ground: document.getElementById('pointGround') ? document.getElementById('pointGround').value : '',
@@ -741,8 +740,6 @@ function submitAll() {
       { id: 'lineEnd', label: '管段终点编号' },
       { id: 'lineStartElev', label: '起点管道高程' },
       { id: 'lineEndElev', label: '终点管道高程' },
-      { id: 'lineStartDepth', label: '管段起点埋深' },
-      { id: 'lineEndDepth', label: '管段终点埋深' },
       { id: 'lineDiameter', label: '管径' }
     ];
     
@@ -761,7 +758,6 @@ function submitAll() {
       { id: 'pointCode', label: '管点编号' },
       { id: 'pointAttach', label: '附属物' },
       { id: 'pointFeature', label: '特征' },
-      { id: 'pointCoverType', label: '井盖类型' },
       { id: 'pointCoverRule', label: '井盖规格' },
       { id: 'pointCoverMat', label: '井盖材质' },
       { id: 'pointGround', label: '地面高程' },
@@ -880,13 +876,11 @@ function submitAll() {
   .then(text => {
     let resp;
     try { resp = JSON.parse(text); } catch(e) { throw new Error(text); }
-    if (resp && resp.success === false) throw new Error(resp.message || '建模失败');
-    showDownloadSection();
-    document.getElementById('result').innerHTML = '🎉 <strong>建模完成！</strong>';
+    renderGenerateResult(resp);
   })
   .catch(err => {
     alert('建模失败: ' + (err.message || err));
-    document.getElementById('result').innerHTML = '❌ 建模失败: ' + (err.message || err);
+    document.getElementById('result').innerHTML = '❌ 建模失败: ' + escapeHtml(String(err.message || err));
   })
   .finally(() => {
     isSubmitting = false;
@@ -896,6 +890,82 @@ function submitAll() {
       submitBtn.classList.remove('submitting');
     }
   });
+}
+
+// HTML转义，避免失败信息中的特殊字符破坏页面
+function escapeHtml(text) {
+  return String(text == null ? '' : text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// 渲染失败分片列表（最多展示前3条）
+function renderFailureList(failures) {
+  if (!Array.isArray(failures) || failures.length === 0) return '';
+  const typeLabels = {line: '管线', point: '管点'};
+  const items = failures.slice(0, 3).map(function(f) {
+    const typeLabel = typeLabels[f.dataType] || f.dataType || '未知';
+    const tileIndex = (f.tileIndex === undefined || f.tileIndex === null) ? '-' : f.tileIndex;
+    const stage = f.stage || '-';
+    return '<li>' + escapeHtml(typeLabel) + '分片 #' + escapeHtml(tileIndex)
+      + '（阶段：' + escapeHtml(stage) + '，类型：' + escapeHtml(f.errorType || '-') + '）：'
+      + escapeHtml(f.reason || '') + '</li>';
+  });
+  if (failures.length > 3) {
+    items.push('<li>其余 ' + (failures.length - 3) + ' 个失败分片未展示</li>');
+  }
+  return '<ul style="margin:6px 0 0 18px;padding:0;">' + items.join('') + '</ul>';
+}
+
+// Draco 压缩的真实执行结果（后端返回 draco.requested/applied/compressedTileCount/failedTileCount/reason）
+function renderDracoNotice(resp) {
+  const draco = resp && resp.draco;
+  if (!draco || !draco.requested) return '';
+  const compressed = typeof draco.compressedTileCount === 'number' ? draco.compressedTileCount : 0;
+  if (draco.applied) {
+    return '<br>✅ Draco 压缩：已启用' + (compressed > 0 ? '（已压缩分片 ' + compressed + ' 个）' : '');
+  }
+  let html = '<br>⚠️ <strong>Draco 压缩未生效</strong>：' + escapeHtml(draco.reason || 'Draco 压缩未执行');
+  if (draco.failedTileCount) {
+    html += '<br>压缩失败分片：' + draco.failedTileCount + (compressed > 0 ? '，成功分片：' + compressed : '');
+  }
+  if (draco.alternative) {
+    html += '<br>替代做法：' + escapeHtml(draco.alternative);
+  }
+  return html;
+}
+
+// 根据接口真实结果区分：建模完成 / 建模部分失败 / 建模失败
+function renderGenerateResult(resp) {
+  const resultEl = document.getElementById('result');
+  const lineCount = Number(resp.lineTileCount || 0);
+  const pointCount = Number(resp.pointTileCount || 0);
+  const failedCount = Number(resp.failedTileCount || 0);
+  const successCount = lineCount + pointCount;
+
+  if (resp && resp.success === false) {
+    const title = successCount > 0 ? '⚠️ <strong>建模部分失败</strong>' : '❌ <strong>建模失败</strong>';
+    let html = title
+      + '<br>成功分片：管线 ' + lineCount + ' / 管点 ' + pointCount
+      + '；失败分片：' + failedCount;
+    if (resp.message) {
+      html += '<br>原因：' + escapeHtml(resp.message);
+    }
+    html += renderFailureList(resp.failures);
+    html += renderDracoNotice(resp);
+    resultEl.innerHTML = html;
+    // 有部分产物时仍允许下载
+    if (successCount > 0) showDownloadSection();
+    alert((successCount > 0 ? '建模部分失败：' : '建模失败：') + (resp.message || '未知原因'));
+    return;
+  }
+
+  showDownloadSection();
+  resultEl.innerHTML = '🎉 <strong>建模完成！</strong><br>管线分片：' + lineCount + '，管点分片：' + pointCount
+    + renderDracoNotice(resp);
 }
 
 // 显示下载区域
@@ -1302,6 +1372,12 @@ function download3DTilesZip() {
     })
     .then(response => {
       if (!response.ok) {
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.indexOf('application/json') !== -1) {
+          return response.json().then(body => {
+            throw new Error(body.message || ('HTTP ' + response.status));
+          });
+        }
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       return response.blob();

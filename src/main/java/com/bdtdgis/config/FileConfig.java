@@ -30,62 +30,35 @@ public class FileConfig {
     
     @PostConstruct
     public void init() {
-        // 优先使用配置文件中的设置
-        if (configuredOutputDir != null && !configuredOutputDir.trim().isEmpty()) {
-            // 处理相对路径
-            if (configuredOutputDir.startsWith("./")) {
-                String currentDir = System.getProperty("user.dir");
-                outputDir = new File(currentDir, configuredOutputDir.substring(2)).getAbsolutePath();
-            } else {
-                outputDir = configuredOutputDir;
-            }
-        } else {
-            // 如果没有配置，使用默认路径
-            try {
-                // 获取classpath路径
-                String classpath = getClass().getClassLoader().getResource("").getPath();
-                if (classpath.startsWith("/")) {
-                    classpath = classpath.substring(1);
-                }
-                outputDir = new File(classpath, "output").getAbsolutePath();
-            } catch (Exception e) {
-                // 如果无法获取classpath，使用当前工作目录
-                String currentDir = System.getProperty("user.dir");
-                outputDir = new File(currentDir, "output").getAbsolutePath();
-            }
+        // 输出目录：优先使用 app.file.output-dir，未配置时回退到 <工作目录>/output
+        outputDir = resolveAndCreateDir(configuredOutputDir, "output", "输出");
+        // 上传目录：优先使用 app.file.upload-dir，未配置时回退到 <工作目录>/uploads
+        uploadDir = resolveAndCreateDir(configuredUploadDir, "uploads", "上传");
+    }
+
+    /**
+     * 解析目录配置并确保目录可用。
+     * <p>
+     * 相对路径统一按进程工作目录解析，绝对路径直接使用；目录无法创建时直接抛出异常，
+     * 避免后续建模在无感知的情况下写入失败目录（尤其是配置了本机不存在的盘符时）。
+     */
+    private String resolveAndCreateDir(String configured, String defaultName, String label) {
+        String value = (configured == null) ? "" : configured.trim();
+        if (value.isEmpty()) {
+            value = defaultName;
         }
-        
-        if (configuredUploadDir != null && !configuredUploadDir.trim().isEmpty()) {
-            // 处理相对路径
-            if (configuredUploadDir.startsWith("./")) {
-                String currentDir = System.getProperty("user.dir");
-                uploadDir = new File(currentDir, configuredUploadDir.substring(2)).getAbsolutePath();
-            } else {
-                uploadDir = configuredUploadDir;
-            }
-        } else {
-            // 如果没有配置，使用默认路径
-            try {
-                // 获取classpath路径
-                String classpath = getClass().getClassLoader().getResource("").getPath();
-                if (classpath.startsWith("/")) {
-                    classpath = classpath.substring(1);
-                }
-                uploadDir = new File(classpath, "uploads").getAbsolutePath();
-            } catch (Exception e) {
-                // 如果无法获取classpath，使用当前工作目录
-                String currentDir = System.getProperty("user.dir");
-                uploadDir = new File(currentDir, "uploads").getAbsolutePath();
-            }
+        File dir = new File(value);
+        if (!dir.isAbsolute()) {
+            dir = new File(System.getProperty("user.dir"), value);
         }
-        
-        // 创建目录
-        new File(outputDir).mkdirs();
-        new File(uploadDir).mkdirs();
-        
-        // 打印调试信息
-        System.out.println("输出目录: " + outputDir);
-        System.out.println("上传目录: " + uploadDir);
+        dir = dir.getAbsoluteFile();
+        if (!dir.isDirectory() && !dir.mkdirs() && !dir.isDirectory()) {
+            throw new IllegalStateException("无法创建" + label + "目录: " + dir.getAbsolutePath()
+                    + "。请检查 app.file." + ("输出".equals(label) ? "output-dir" : "upload-dir")
+                    + " 配置及目录权限");
+        }
+        System.out.println(label + "目录: " + dir.getAbsolutePath());
+        return dir.getAbsolutePath();
     }
     
     private String getResourcesPath() {

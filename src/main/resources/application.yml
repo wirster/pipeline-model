@@ -7,11 +7,15 @@ spring:
 # 文件路径配置
 app:
   file:
-    # 输出目录配置
-    output-dir: E:\\3dtiltes\\tiles
-    # 上传目录配置  
+    # 输出目录配置：相对路径按进程工作目录解析，未配置时默认 <工作目录>/output
+    # Windows 下如需指定盘符请填写绝对路径（例如 E:/3dtiles/tiles），不要保留不存在的盘符默认值
+    output-dir: ./output
+    # 上传目录配置：相对路径按进程工作目录解析，未配置时默认 <工作目录>/uploads
     upload-dir: ./target/classes/uploads
-    # 是否使用相对路径（相对于resources目录）
+    # 是否使用相对路径（保留配置项，当前目录解析以上面的路径为准）
     use-relative-path: true
 # obj23dtiles所在路径
 obj23dtilesPath: D:\nodejs\obj23dtiles.cmd
+# Draco 后处理压缩工具（gltf-pipeline）路径或命令名：
+# 可填 npm 全局安装后的 gltf-pipeline 命令名，或 gltf-pipeline.cmd 的绝对路径
+dracoToolPath: gltf-pipeline

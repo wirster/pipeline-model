@@ -150,12 +150,16 @@ public class ModelController {
 		resp.put("success", true);
 		resp.put("hasFiles", hasFiles);
 		resp.put("foundFiles", found);
-		resp.put("message", hasFiles ? "OK" : "未找到3DTiles文件");
+		resp.put("message", hasFiles ? "OK" : "未找到可下载的3D Tiles产物（请确认建模已成功，且 obj23dtiles 可用）");
+		if (!hasFiles) {
+			resp.put("errorType", "NO_OUTPUT");
+			resp.put("success", false);
+		}
 		return resp;
 	}
 
 	@GetMapping("/download/3dtiles/zip")
-	public ResponseEntity<FileSystemResource> download3DTilesZip() {
+	public ResponseEntity<?> download3DTilesZip() {
 		try {
 			String outputDir = getOutputDir();
 			System.out.println("开始创建3DTiles ZIP包，输出目录: " + outputDir);
@@ -164,7 +168,8 @@ public class ModelController {
 			File outputFolder = new File(outputDir);
 			if (!outputFolder.exists() || !outputFolder.isDirectory()) {
 				System.out.println("输出目录不存在: " + outputDir);
-				return ResponseEntity.notFound().build();
+				return errorResponse(HttpStatus.NOT_FOUND, "NO_OUTPUT",
+						"未找到可下载的3D Tiles产物：输出目录不存在（" + outputDir + "），请先完成建模");
 			}
 
 			// 检查是否有3DTiles文件
@@ -181,7 +186,8 @@ public class ModelController {
 
 			if (!hasTilesetFiles) {
 				System.out.println("未找到3DTiles文件");
-				return ResponseEntity.notFound().build();
+				return errorResponse(HttpStatus.NOT_FOUND, "NO_OUTPUT",
+						"未找到可下载的3D Tiles产物：输出目录下没有 tileset.json，请确认建模已成功（obj23dtiles 可用并完成转换）");
 			}
 
 			String zipPath = outputDir + "/3dtiles.zip";
@@ -212,14 +218,29 @@ public class ModelController {
 						.body(resource);
 			} else {
 				System.out.println("ZIP文件创建失败或为空");
-				return ResponseEntity.notFound().build();
+				return errorResponse(HttpStatus.NOT_FOUND, "NO_OUTPUT",
+						"3D Tiles 产物打包失败：生成的 ZIP 为空（" + zipPath + "）");
 			}
 
 		} catch (Exception e) {
 			System.err.println("创建ZIP文件时发生错误: " + e.getMessage());
 			e.printStackTrace();
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+			return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "ZIP_FAILED",
+					"打包3D Tiles产物失败：" + e.getMessage());
 		}
+	}
+
+	/**
+	 * 构造 JSON 错误响应，便于前端展示具体失败原因
+	 */
+	private ResponseEntity<Map<String, Object>> errorResponse(HttpStatus status, String errorType, String message) {
+		Map<String, Object> body = new HashMap<>();
+		body.put("success", false);
+		body.put("errorType", errorType);
+		body.put("message", message);
+		return ResponseEntity.status(status)
+				.contentType(MediaType.APPLICATION_JSON)
+				.body(body);
 	}
 
 	// 静态资源代理：获取3D Tiles文件

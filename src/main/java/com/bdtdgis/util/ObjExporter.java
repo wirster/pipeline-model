@@ -175,7 +175,11 @@ public class ObjExporter {
                 } else {
                     // 普通模型：优先保持贴图材质名，否则默认材质
                     if (meshHasEffectiveTexture) {
-                        String chosenMaterial = asString(mesh.attributes != null ? mesh.attributes.get("originalMaterial") : null);
+                        // 与 generateMTLFile 保持一致：material → originalMaterial → materialMap → mat_<dataType>_tex
+                        String chosenMaterial = asString(mesh.attributes != null ? mesh.attributes.get("material") : null);
+                        if (chosenMaterial == null || chosenMaterial.isEmpty()) {
+                            chosenMaterial = asString(mesh.attributes != null ? mesh.attributes.get("originalMaterial") : null);
+                        }
                         if (chosenMaterial == null || chosenMaterial.isEmpty()) {
                             Object mmObj = mesh.attributes != null ? mesh.attributes.get("materialMap") : null;
                             if (mmObj instanceof Map) {
@@ -565,8 +569,11 @@ public class ObjExporter {
                         // 检查是否有预设的材质和贴图信息
                         String material = asString(mesh.attributes.get("material"));
                         String texture = asString(mesh.attributes.get("texture"));
-                        if (material != null && texture != null) {
-                            materialToTexture.put(material, texture);
+                        if (texture != null && !texture.trim().isEmpty()) {
+                            // 贴图方案：材质名必须与 OBJ 中 usemtl 一致（无 material 时用 mat_<dataType>_tex）
+                            String matName = (material != null && !material.isEmpty())
+                                    ? material : ("mat_" + dataType + "_tex");
+                            materialToTexture.put(matName, texture);
                             String orig = asString(mesh.attributes.get("originalMaterial"));
                             if (orig != null && !orig.isEmpty() && !materialToTexture.containsKey(orig)) {
                                 referencedMaterialsNoTexture.add(orig);
@@ -621,6 +628,7 @@ public class ObjExporter {
                 // 无贴图：创建统一材质 mat_<dataType>
                 String matName = "mat_" + dataType;
                 float[] rgb = readSchemeColorFromMeshes(meshes);
+                declaredMaterials.add(matName);
                 writer.println("newmtl " + matName);
                 writer.printf("Kd %.6f %.6f %.6f\n", rgb[0], rgb[1], rgb[2]);
                 writer.println("d 1");
@@ -761,12 +769,22 @@ public class ObjExporter {
     }
 
     /** 判断 mesh 是否存在“有效贴图”：显式声明了贴图，或“当前使用的材质名”在材质映射中有贴图。 */
+    /**
+     * 判断贴图路径是否可用（绝对/相对路径存在，或能在常见目录中找到同名文件）
+     */
+    private static boolean isTextureUsable(String texturePath) {
+        if (texturePath == null || texturePath.trim().isEmpty()) return false;
+        File file = new File(texturePath.trim());
+        if (file.exists() && file.isFile()) return true;
+        return !file.isAbsolute() && findTextureInMultipleLocations(texturePath.trim()) != null;
+    }
+
     private static boolean hasEffectiveTexture(Mesh mesh) {
         if (mesh == null || mesh.attributes == null) return false;
-        // 直接贴图键
-        if (mesh.attributes.get("texture") != null) return true;
-        if (mesh.attributes.get("sideTexture") != null) return true;
-        if (mesh.attributes.get("topTexture") != null) return true;
+        // 直接贴图键（贴图文件不可用时按无贴图处理，避免 usemtl 指向 MTL 中不存在的材质）
+        if (isTextureUsable(asString(mesh.attributes.get("texture")))) return true;
+        if (isTextureUsable(asString(mesh.attributes.get("sideTexture")))) return true;
+        if (isTextureUsable(asString(mesh.attributes.get("topTexture")))) return true;
         // 解析自源MTL的完整材质映射
         Object m = mesh.attributes.get("materialMap");
         if (m instanceof Map) {

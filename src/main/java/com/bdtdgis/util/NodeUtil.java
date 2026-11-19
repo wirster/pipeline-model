@@ -124,16 +124,63 @@ public class NodeUtil {
             System.out.println("命令执行完成，退出码: " + exitCode);
             
             if (exitCode != 0) {
-                // 检查是否只是警告信息
-                if (outputText.contains("deprecated") || outputText.contains("warning")) {
-                    return;
+                if (isToolNotFoundOutput(outputText)) {
+                    throw new RuntimeException("外部工具不可用：命令不存在或无法执行。退出码: " + exitCode
+                            + "\n输出: " + outputText.trim());
                 }
-                throw new RuntimeException("命令执行失败，退出码: " + exitCode + "\n输出: " + outputText);
+                throw new RuntimeException("命令执行失败，退出码: " + exitCode + "\n输出: " + outputText.trim());
             }
         } catch (Exception e) {
             System.err.println("执行外部命令时发生错误: " + e.getMessage());
             throw e;
         }
+    }
+
+    /**
+     * 判断命令输出是否表示“工具不存在/无法执行”
+     */
+    public static boolean isToolNotFoundOutput(String output) {
+        if (output == null) {
+            return false;
+        }
+        String text = output.toLowerCase();
+        return output.contains("不是内部或外部命令")
+                || text.contains("is not recognized as an internal or external command")
+                || text.contains("is not recognized")
+                || output.contains("系统找不到指定的路径")
+                || text.contains("the system cannot find the path specified")
+                || text.contains("no such file or directory");
+    }
+
+    /**
+     * 检查 obj23dtiles 是否可用
+     * <p>
+     * 配置值为文件路径（绝对路径或带目录分隔符）时检查文件是否存在；
+     * 配置值为命令名时通过 {@link #isCommandAvailable(String)} 探测。
+     *
+     * @param path 配置的 obj23dtiles 路径或命令名
+     * @return 是否可用
+     */
+    public static boolean isObj23dtilesAvailable(String path) {
+        if (path == null || path.trim().isEmpty()) {
+            System.out.println("obj23dtiles 不可用：未配置 obj23dtilesPath");
+            return false;
+        }
+        String trimmed = path.trim();
+        boolean looksLikePath = trimmed.contains("/") || trimmed.contains("\\") || trimmed.contains(":");
+        if (looksLikePath) {
+            File file = new File(trimmed);
+            if (!file.isFile()) {
+                System.out.println("obj23dtiles 不可用：文件不存在 " + trimmed);
+                return false;
+            }
+            return true;
+        }
+        boolean available = isCommandAvailable(trimmed);
+        if (!available) {
+            System.out.println("obj23dtiles 不可用：命令不存在 " + trimmed);
+        }
+        return available;
     }
 
     /**

@@ -60,9 +60,9 @@ public class BatchTableUtil {
             }
             
             mapper.writerWithDefaultPrettyPrinter().writeValue(batchTableFile, batchTable);
-            System.out.println("生成batch_table.json: " + batchTableFile.getAbsolutePath() + " (数量: " + actualCount + ")");
+            System.out.println("生成批表文件: " + batchTableFile.getAbsolutePath() + " (数量: " + actualCount + ")");
         } catch (Exception e) {
-            System.err.println("Failed to write batch_table.json: " + batchTableFile.getAbsolutePath());
+            System.err.println("Failed to write batch table: " + batchTableFile.getAbsolutePath());
             e.printStackTrace();
             throw new RuntimeException("生成batch table失败: " + e.getMessage(), e);
         }

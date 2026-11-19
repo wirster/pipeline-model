@@ -235,8 +235,9 @@ public class ShpReader {
                     diameter = diameter / 1000; // 转换为米
                     Map<String, Object> attrMap = getStringObjectMap(feature);
                     String lineId = String.valueOf(feature.getAttribute(fieldMap.get("id")));
-                    double startDepth = (double) feature.getAttribute(fieldMap.get("startDepth"));
-                    double endDepth = (double) feature.getAttribute(fieldMap.get("endDepth"));
+                    // 起点/终点埋深为可选字段：未映射或字段为空时按 0 处理，且不参与几何计算（几何Z由高程与埋深基础决定）
+                    double startDepth = readOptionalDouble(feature, fieldMap, "startDepth");
+                    double endDepth = readOptionalDouble(feature, fieldMap, "endDepth");
                     String lineStart = String.valueOf(feature.getAttribute(fieldMap.get("start")));
                     String lineEnd = String.valueOf(feature.getAttribute(fieldMap.get("end")));
                     double startElev = parseDouble(feature.getAttribute(fieldMap.get("startElev")));
@@ -251,6 +252,20 @@ public class ShpReader {
             logger.log(Level.SEVERE, "读取管线数据异常: " + shpFile.getName(), e);
             throw e;
         }
+    }
+
+    /**
+     * 读取可选的数值字段：字段未映射、名称为空或取值无法解析时返回 0.0。
+     */
+    private static double readOptionalDouble(SimpleFeature feature, Map<String, String> fieldMap, String key) {
+        if (fieldMap == null) {
+            return 0.0;
+        }
+        String fieldName = fieldMap.get(key);
+        if (fieldName == null || fieldName.trim().isEmpty()) {
+            return 0.0;
+        }
+        return parseDouble(feature.getAttribute(fieldName));
     }
 
     /**

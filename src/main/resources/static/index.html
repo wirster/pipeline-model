@@ -104,14 +104,14 @@
           </div>
           <div class="field-row">
             <div class="field-mapping">
-              <label>管段起点埋深</label>
+              <label>管段起点埋深（可选）</label>
               <select id="lineStartDepth" onchange="updateMappingStatus('lineStartDepth')">
                 <option value="">请选择字段</option>
               </select>
               <span class="mapping-status" id="lineStartDepth-status"></span>
             </div>
             <div class="field-mapping">
-              <label>管段终点埋深</label>
+              <label>管段终点埋深（可选）</label>
               <select id="lineEndDepth" onchange="updateMappingStatus('lineEndDepth')">
                 <option value="">请选择字段</option>
               </select>
@@ -174,13 +174,6 @@
             </div>
           </div>
           <div class="field-row">
-            <div class="field-mapping">
-              <label>井盖类型</label>
-              <select id="pointCoverType" onchange="updateMappingStatus('pointCoverType')">
-                <option value="">请选择字段</option>
-              </select>
-              <span class="mapping-status" id="pointCoverType-status"></span>
-            </div>
             <div class="field-mapping">
               <label>井盖规格</label>
               <select id="pointCoverRule" onchange="updateMappingStatus('pointCoverRule')">
@@ -270,7 +263,8 @@
               </div>
               <div>
                 <label>输出参数：</label>
-                <input type="checkbox" id="enableDraco"> 启用模型压缩(Draco)
+                <input type="checkbox" id="enableDraco" title="勾选后对生成的 b3dm 执行 gltf-pipeline Draco 压缩；需本机安装 gltf-pipeline 并配置 dracoToolPath，未安装时会明确报错"> 启用模型压缩(Draco)
+                <span style="color:#888;font-size:12px;">（需安装 gltf-pipeline，未安装时建模会明确失败）</span>
               </div>
             </div>
           </div>

@@ -18,18 +18,37 @@ import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
 
 /**
- * 附属物和特征模型放置工具
+ * 管点网格构建工具
  * <p>
  * 处理步骤：
  * 1. 根据管点附属物+附属物类型值找到对应的附属物模型（附属物类型为空则使用默认default模型）
  * 优先从modelSettings.attachModels 按附属物+附属物类型找到对应OBJ 文件
  * 如果没有找到附属物模型为空，则从modelSettings.featureModels 按特征+特征类型找到 OBJ 文件
- * 2. 将附属物或者特征对应的模型转为mesh，从OBJ 解析出多个 Mesh（按 g/usemtl 分组）
- * 将模型移动到管点位置（模型顶面中心对齐到管点坐标(x,y,z)）
- * 3. 自动模型将Y轴"上"方向调整为Z轴"上"方向，进行朝向调整（以原点为中心）
- * 4. 给mesh设置对应的管点属性信息，保留模型原始的材质贴图信息
+ * 2. 未匹配到任何模型时，按文档生成默认几何：
+ * - 有井深（&gt;0）：长方体井体，底面为正方形（边长=管径），高度=井深；
+ * - 无井深：圆柱体接头，半径=管径/2，高度=管径。
+ * 管径取管点关联管线的最大管径，无关联管线时使用 {@link #DEFAULT_PIPE_DIAMETER}。
+ * 3. 将附属物/特征模型转为mesh（按 g/usemtl 分组），自动将Y轴"上"调整为Z轴"上"并调整朝向
+ * 4. 按埋深基础（管顶/管心/管底）统一落位：管点几何的顶部/中心/底部与管线端部参考高程对齐
+ * 5. 给mesh设置对应的管点属性信息，保留模型原始的材质贴图信息
  */
 public class PipePointMeshBuilder {
+
+    /** 无关联管线时使用的默认管径（米）。 */
+    private static final double DEFAULT_PIPE_DIAMETER = 0.3;
+
+    /** 默认几何的最小高度（米），避免退化几何。 */
+    private static final double MIN_POINT_HEIGHT = 0.1;
+
+    /** 默认圆柱体的分段数，与管线圆柱保持一致。 */
+    private static final int DEFAULT_CYLINDER_SEGMENTS = 32;
+
+    /** 默认管点颜色（与前端/导出的管点默认色一致）。 */
+    private static final float[] DEFAULT_POINT_COLOR = {
+            0.48627450980392156f, 0.5843137254901961f, 0.6666666666666666f};
+
+    /** 默认几何使用的材质名，确保OBJ/MTL引用一致。 */
+    private static final String DEFAULT_POINT_MATERIAL = "mat_point";
 
     /**
      * 模型信息类
@@ -54,7 +73,7 @@ public class PipePointMeshBuilder {
     }
 
     /**
-     * 放置附属物或特征模型到管点位置
+     * 生成管点网格：优先放置附属物/特征模型，未匹配到模型时生成默认几何
      *
      * @param point         管点对象
      * @param lines         管线列表
@@ -70,22 +89,166 @@ public class PipePointMeshBuilder {
 
         // 步骤2: 查找模型路径
         ModelInfo modelInfo = findModelPath(point, modelSettings);
+
+        // 步骤3: 未匹配到附属物/特征模型时，按文档生成默认几何
         if (modelInfo == null) {
-            return Collections.emptyList();
+            return buildDefaultPointMeshes(point, lines, modelSettings);
         }
 
-        // 步骤3: 加载OBJ文件为Mesh
+        // 步骤4: 加载OBJ文件为Mesh
         List<Mesh> meshes = loadObjAsMeshes(modelInfo.modelPath);
         if (meshes.isEmpty()) {
             return Collections.emptyList();
         }
 
-        // 步骤4: 模型变换和放置
+        // 步骤5: 模型变换和放置
         transformAndPlaceModel(meshes, point, lines, modelInfo, modelSettings);
-        // 步骤5: 设置Mesh属性
+        // 步骤6: 设置Mesh属性
         setMeshAttributes(meshes, point, modelInfo);
 
         return meshes;
+    }
+
+    /**
+     * 步骤3: 生成默认管点几何
+     * <p>
+     * 尺寸依据（文档未给出具体数值规则，按现有字段与管线侧约定取值）：
+     * - 管径：取管点关联管线的最大管径；无关联管线时使用 {@link #DEFAULT_PIPE_DIAMETER}（0.3m）。
+     * - 有井深（depth &gt; 0）：长方体井体，底面正方形边长=管径，高度=井深；
+     * - 无井深：圆柱体接头，半径=管径/2，高度=管径（最小 {@link #MIN_POINT_HEIGHT}）。
+     * 几何生成后按埋深基础与管线端部对齐。
+     */
+    private static List<Mesh> buildDefaultPointMeshes(PipePoint point, List<PipeLine> lines,
+                                                      Map<String, Object> modelSettings) {
+        double diameter = resolvePointDiameter(point, lines);
+        double radius = diameter / 2.0;
+        int batchId = resolveBatchId(point);
+        Double depth = point.getDepth();
+
+        Mesh mesh;
+        if (depth != null && depth > 0.001) {
+            // 长方体井体：底面正方形边长=管径，高度=井深
+            mesh = buildBox(radius, depth, batchId);
+        } else {
+            // 圆柱体接头：半径=管径/2，高度=管径
+            mesh = buildVerticalCylinder(radius, Math.max(diameter, MIN_POINT_HEIGHT), batchId);
+        }
+        if (mesh == null || mesh.faces == null || mesh.faces.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Mesh> meshes = new ArrayList<>();
+        meshes.add(mesh);
+        setDefaultMeshAttributes(meshes, point);
+        // 按埋深基础（管顶/管心/管底）对齐到管线端部参考高程
+        applyPointPlacement(meshes, point, lines, modelSettings);
+        return meshes;
+    }
+
+    /**
+     * 生成竖直双面圆柱体（Z轴向上，底面在 z=0）
+     */
+    private static Mesh buildVerticalCylinder(double radius, double height, int batchId) {
+        Coordinate bottom = new Coordinate(0, 0, 0);
+        Coordinate top = new Coordinate(0, 0, Math.max(height, MIN_POINT_HEIGHT));
+        return PipeLineMeshBuilder.buildCylinder(bottom, top, Math.max(radius, MIN_POINT_HEIGHT / 2.0),
+                DEFAULT_CYLINDER_SEGMENTS, batchId);
+    }
+
+    /**
+     * 生成双面长方体（Z轴向上，底面在 z=0，XY以原点为中心）
+     */
+    private static Mesh buildBox(double halfSize, double height, int batchId) {
+        double h = Math.max(height, MIN_POINT_HEIGHT);
+        double s = Math.max(halfSize, MIN_POINT_HEIGHT / 2.0);
+
+        Mesh mesh = new Mesh();
+        List<Vertex> vertices = new ArrayList<>();
+        double[] xs = {-s, s, s, -s};
+        double[] ys = {-s, -s, s, s};
+        for (double z : new double[]{0.0, h}) {
+            for (int i = 0; i < 4; i++) {
+                vertices.add(new Vertex(xs[i], ys[i], z));
+            }
+        }
+        int[][] quads = {
+                {0, 1, 2, 3}, // 底面
+                {4, 7, 6, 5}, // 顶面
+                {0, 4, 5, 1},
+                {1, 5, 6, 2},
+                {2, 6, 7, 3},
+                {3, 7, 4, 0}
+        };
+        for (int[] q : quads) {
+            mesh.faces.add(new Face(q[0], q[1], q[2]));
+            mesh.faces.add(new Face(q[0], q[2], q[3]));
+        }
+        // 双面几何：复制顶点并追加反向面（与管线圆柱一致）
+        int originalVertexCount = vertices.size();
+        int originalFaceCount = mesh.faces.size();
+        for (int i = 0; i < originalVertexCount; i++) {
+            Vertex v = vertices.get(i);
+            vertices.add(new Vertex(v.x, v.y, v.z));
+        }
+        List<Face> reversedFaces = new ArrayList<>();
+        for (int i = 0; i < originalFaceCount; i++) {
+            Face f = mesh.faces.get(i);
+            reversedFaces.add(new Face(f.v1 + originalVertexCount, f.v3 + originalVertexCount,
+                    f.v2 + originalVertexCount));
+        }
+        mesh.faces.addAll(reversedFaces);
+        mesh.vertices = vertices;
+
+        PipeLineMeshBuilder.autoFillAttributes(mesh, batchId);
+        return mesh;
+    }
+
+    /**
+     * 解析默认几何使用的管径：取关联管线的最大管径
+     */
+    private static double resolvePointDiameter(PipePoint point, List<PipeLine> lines) {
+        double diameter = 0.0;
+        for (PipeLine line : findAssociatedLines(point, lines)) {
+            diameter = Math.max(diameter, line.getDiameter());
+        }
+        return diameter > 0.0001 ? diameter : DEFAULT_PIPE_DIAMETER;
+    }
+
+    /**
+     * 解析默认几何的batchId：优先使用数值型管点ID
+     */
+    private static int resolveBatchId(PipePoint point) {
+        String pointId = point.getPointId();
+        if (pointId != null) {
+            try {
+                return Integer.parseInt(pointId.trim());
+            } catch (NumberFormatException ignored) {
+                return Math.abs(pointId.hashCode());
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * 设置默认几何的属性信息（保持BatchTable仅含原始属性）
+     */
+    private static void setDefaultMeshAttributes(List<Mesh> meshes, PipePoint point) {
+        for (Mesh mesh : meshes) {
+            Map<String, Object> attrs = new HashMap<>();
+            attrs.put("name", "Point-" + point.getPointId());
+            attrs.put("batchId", point.getPointId());
+            attrs.put("modelType", "default");
+            // 保证MTL中声明该材质，避免OBJ引用不存在的材质名
+            attrs.put("originalMaterial", DEFAULT_POINT_MATERIAL);
+            if (point.getDirection() != null) {
+                attrs.put("direction", point.getDirection());
+            }
+            mesh.setAttributes(attrs);
+            mesh.setOriginalAttributes(point.getAttributes() != null ?
+                    new HashMap<>(point.getAttributes()) : new HashMap<>());
+            float[] color = DEFAULT_POINT_COLOR.clone();
+            mesh.setColors(Collections.singletonList(color));
+        }
     }
 
     /**
@@ -136,8 +299,6 @@ public class PipePointMeshBuilder {
      */
     private static void transformAndPlaceModel(List<Mesh> meshes, PipePoint point, List<PipeLine> lines,
                                                ModelInfo modelInfo, Map<String, Object> modelSettings) {
-        Coordinate pointCoord = point.getCoord();
-
         // 4.1 计算模型包围盒和中心
         double[] bbox = computeUnionBBox(meshes);
         double centerX = (bbox[0] + bbox[3]) / 2.0;
@@ -153,25 +314,65 @@ public class PipePointMeshBuilder {
         if (!modelInfo.isAccessory) {
             calculateModelOrientation(meshes, point, lines);
         }
-        // 收集特征模型所需的"起点/终点"实际高程（仅特征模型用）
-        List<Double> adjustedStartElevations = !modelInfo.isAccessory ?
-                collectAdjustedEndpointElevations(point, lines, modelSettings) : null;
         // 4.5 根据模型类型调整高度
         adjustModelHeight(meshes, point, modelInfo, originalHeight, lines);
-        // 4.6 将模型移动到目标位置（顶面中心对齐）
-        double[] bboxAfter = computeUnionBBox(meshes);
-        double curCenterX = (bboxAfter[0] + bboxAfter[3]) / 2.0;
-        double curCenterY = (bboxAfter[1] + bboxAfter[4]) / 2.0;
-        double curTopZ = bboxAfter[5];
-        // 始终使XY对齐到管点坐标，仅Z的目标不同
-        double dx = pointCoord.x - curCenterX;
-        double dy = pointCoord.y - curCenterY;
-        double targetTopZ =
-                (!modelInfo.isAccessory && adjustedStartElevations != null && !adjustedStartElevations.isEmpty()) ?
-                        Collections.max(adjustedStartElevations) : pointCoord.z;
-        double dz = targetTopZ - curTopZ;
-        translateAll(meshes, dx, dy, dz);
+        // 4.6 平移到管点位置，并按埋深基础（管顶/管心/管底）与管线端部对齐
+        applyPointPlacement(meshes, point, lines, modelSettings);
+    }
 
+    /**
+     * 步骤4.6: 平移到管点位置并按埋深基础对齐
+     * <p>
+     * 与管线三档算法保持一致：管线侧的参考高程 z 在
+     * 管顶/管心/管底模式下分别对应管顶/中心轴/管底。
+     * 因此管点几何也按同样的基准落位：
+     * - top   ：几何顶部 = 参考高程
+     * - center：几何中心 = 参考高程
+     * - bottom：几何底部 = 参考高程
+     * 参考高程优先取管点关联管线端部高程（保证与管线端部对齐），无关联管线时取管点Z。
+     */
+    private static void applyPointPlacement(List<Mesh> meshes, PipePoint point, List<PipeLine> lines,
+                                            Map<String, Object> modelSettings) {
+        double[] bbox = computeUnionBBox(meshes);
+        double centerX = (bbox[0] + bbox[3]) / 2.0;
+        double centerY = (bbox[1] + bbox[4]) / 2.0;
+
+        double refZ = resolveReferenceZ(point, lines);
+        String depthBase = resolveDepthBase(modelSettings);
+        double dz;
+        if ("top".equalsIgnoreCase(depthBase)) {
+            dz = refZ - bbox[5];
+        } else if ("center".equalsIgnoreCase(depthBase)) {
+            dz = refZ - (bbox[2] + bbox[5]) / 2.0;
+        } else {
+            // 默认与管线侧一致：管底
+            dz = refZ - bbox[2];
+        }
+        translateAll(meshes, point.getCoord().x - centerX, point.getCoord().y - centerY, dz);
+    }
+
+    /**
+     * 管点几何的参考高程：优先取关联管线端部高程，保证与管线端部对齐
+     */
+    private static double resolveReferenceZ(PipePoint point, List<PipeLine> lines) {
+        List<Double> elevations = collectElevations(point, lines);
+        if (!elevations.isEmpty()) {
+            return Collections.max(elevations);
+        }
+        return point.getCoord().z;
+    }
+
+    /**
+     * 解析埋深基础，缺省与管线侧一致（bottom）
+     */
+    private static String resolveDepthBase(Map<String, Object> modelSettings) {
+        if (modelSettings != null && modelSettings.get("depthBase") != null) {
+            String value = String.valueOf(modelSettings.get("depthBase")).trim();
+            if (!value.isEmpty()) {
+                return value;
+            }
+        }
+        return "bottom";
     }
 
     /**
@@ -252,7 +453,13 @@ public class PipePointMeshBuilder {
      */
     private static List<Double> collectElevations(PipePoint point, List<PipeLine> lines) {
         List<Double> elevations = new ArrayList<>();
+        if (point == null || lines == null) {
+            return elevations;
+        }
         String pointCode = point.getPointCode();
+        if (pointCode == null || pointCode.trim().isEmpty()) {
+            return elevations;
+        }
         for (PipeLine line : lines) {
             if (pointCode.equals(line.getLineStart())) {
                 elevations.add(line.getStartElev());
@@ -1062,26 +1269,5 @@ public class PipePointMeshBuilder {
         }
     }
 
-    // 收集与管点关联的"起点/终点"实际高程（考虑埋深基础），使用 PipeLine 几何坐标Z
-    private static List<Double> collectAdjustedEndpointElevations(PipePoint point, List<PipeLine> lines, Map<String,
-            Object> modelSettings) {
-        List<Double> values = new ArrayList<>();
-        if (point == null || lines == null || lines.isEmpty()) return values;
-        String pointCode = point.getPointCode();
-        if (pointCode == null || pointCode.trim().isEmpty()) return values;
-        for (PipeLine line : lines) {
-            if (pointCode.equals(line.getLineStart())) {
-                // 使用管线起点高程字段作为基础高程
-                double base = line.getStartElev();
-                values.add(base);
-            }
-            if (pointCode.equals(line.getLineEnd())) {
-                // 使用管线终点高程字段作为基础高程
-                double base = line.getEndElev();
-                values.add(base);
-            }
-        }
-        return values;
-    }
 
 }
