@@ -1,5 +1,5 @@
 ## Pipeline Model (管线/管点三维建模与三维瓦片发布)
-
+fork自https://gitee.com/wangqinyou/pipeline-model
 ### 概述
 - **目标**: 从管线/管点 SHP 数据生成 3D 模型（OBJ/MTL），转换为 3D Tiles（B3DM），支持颜色/贴图两种渲染方案、网格化分片与可选的 Draco 压缩。
 - **技术栈**: Spring Boot 2.7.14（编译目标 Java 1.8）+ 原生前端静态页（`src/main/resources/static`）+ `obj23dtiles`（外部 Node.js 工具）+ `gltf-pipeline`（可选，Draco 压缩）。
